@@ -17,15 +17,13 @@ class UsersController
         }
 
         $sql = "INSERT INTO users (guid, username, password) VALUES (uuid(), :username, :password)";
-        $st = db()->prepare($sql);
-        $st->execute([
+        pdo_st($sql, [
             'username' => $request->username,
             'password' => $this->encrypt($request->password),
         ]);
 
         $sql = "SELECT guid FROM users WHERE id = :id";
-        $st = db()->prepare($sql);
-        $st->execute([
+        $st = pdo_st($sql, [
             'id' => db()->lastInsertId()
         ]);
 
@@ -61,8 +59,7 @@ class UsersController
             guid = :guid
         ";
 
-        $st = db()->prepare($sql);
-        $st->execute([
+        $st = pdo_st($sql, [
             'token' => $token,
             'lat' => $request->lat,
             'lon' => $request->lon,
@@ -74,8 +71,6 @@ class UsersController
             'message' => 'Logged in OK, use token for next requests',
             'token' => $token,
         ]);
-
-        $st->debugDumpParams(); exit;
     }
 
     public function update($request)

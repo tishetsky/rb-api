@@ -15,7 +15,7 @@ foreach ($config['routes'] as $method => $routes) {
 }
 
 try {
-    $router->dispatch();
+    $router->dispatch(\App\Request::createFromGlobals());
 } catch (\Exception $e) {
     $router->response()->code(400)->json([
         'error' => $e->getCode(),
