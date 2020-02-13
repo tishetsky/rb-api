@@ -6,30 +6,23 @@ namespace App;
 
 class UsersController
 {
+
     public function create($request, $response)
     {
         if (empty($request->username) || empty($request->password)) {
+            // in real app these text messages normally will be stored and obtained through
+            // localization/language files mechanism which is too complicated to implement in test task
             throw new \Exception('Username and passsword cannot be empty', 1);
         }
 
-        if ($this->getUser($request->username)) {
+        if (User::find($request->username)) {
             throw new \Exception('Username already exists', 2);
         }
 
-        $sql = "INSERT INTO users (guid, username, password) VALUES (uuid(), :username, :password)";
-        pdo_st($sql, [
-            'username' => $request->username,
-            'password' => $this->encrypt($request->password),
-        ]);
-
-        $sql = "SELECT guid FROM users WHERE id = :id";
-        $st = pdo_st($sql, [
-            'id' => db()->lastInsertId()
-        ]);
-
         $response->json([
+            'result' => true,
             'message' => 'User created OK',
-            'id' => $st->fetchColumn(),
+            'user_id' => (new User())->create($request),
         ]);
     }
 
@@ -39,46 +32,35 @@ class UsersController
             throw new \Exception('Username and password cannot be empty', 1);
         }
 
-        $user = $this->getUser($request->username);
+        /** @var User|null $user */
+        $user = User::find($request->username);
 
-        if (empty($user) || $user['password'] != $this->encrypt($request->password)) {
+        if (empty($user) || !$user->authorize($request)) {
             throw new \Exception('Username or password is incorrect', 3);
         }
 
-        $token = bin2hex(openssl_random_pseudo_bytes(32));
-        $sql = "
-        UPDATE
-            users
-        SET
-            last_auth = NOW(),
-            auth_token = :token,
-            lat = :lat,
-            lon = :lon,
-            country = :country
-        WHERE
-            guid = :guid
-        ";
-
-        $st = pdo_st($sql, [
-            'token' => $token,
-            'lat' => $request->lat,
-            'lon' => $request->lon,
-            'country' => $request->country,
-            'guid' => $user['guid'],
+        $response->json([
+            'result' => true,
+            'message' => 'Logged in OK, use auth_token for further requests',
+            'auth_token' => $user->auth_token,
         ]);
+    }
+
+    public function update($request, $response)
+    {
+        /** @var User $user */
+        $user = $this->getAuthTokenUser($request);
+
+        $updatedFields = $user->update($request);
 
         $response->json([
-            'message' => 'Logged in OK, use token for next requests',
-            'token' => $token,
+            'result' => true,
+            'message' => 'Profile updated',
+            'new_values' => $user->getPublicData($updatedFields),
         ]);
     }
 
-    public function update($request)
-    {
-        return 'User profile updated';
-    }
-
-    public function saveSettings($request)
+    public function updateSettings($request)
     {
         return 'Settings are saved';
     }
@@ -88,19 +70,18 @@ class UsersController
         return 'Listing all users';
     }
 
-    protected function getUser(string $username)
+    protected function getAuthTokenUser($request)
     {
-        $sql = "SELECT * FROM users WHERE username = :username";
-        $st = db()->prepare($sql);
-        $st->execute([
-            'username' => $username
-        ]);
+        if (empty($request->auth_token)) {
+            throw new \Exception('Empty auth_token', 6);
+        }
 
-        return $st->fetch(\PDO::FETCH_ASSOC);
-    }
+        $user = User::find($request->auth_token, 'auth_token');
 
-    protected function encrypt(string $password)
-    {
-        return hash_hmac('sha256', $password, 's3cr3t');
+        if (empty($user)) {
+            throw new \Exception('Provided auth_token is invalid or expired', 7);
+        }
+
+        return $user;
     }
 }

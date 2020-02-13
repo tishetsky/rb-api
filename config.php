@@ -22,8 +22,8 @@ return [
         ],
 
         'PUT' => [
-            '/users/[:id]' => '\App\UsersController@update',
-            '/users/[:id]/settings' => '\App\UsersController@saveSettings',
+            '/users' => '\App\UsersController@update',
+            '/users/settings' => '\App\UsersController@updateSettings',
         ],
     ],
 ];

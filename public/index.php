@@ -18,8 +18,8 @@ try {
     $router->dispatch(\App\Request::createFromGlobals());
 } catch (\Exception $e) {
     $router->response()->code(400)->json([
+        'result' => false,
         'error' => $e->getCode(),
         'message' => $e->getMessage(),
     ]);
 }
-
